@@ -1,0 +1,6 @@
+project_id = "lead-intake"
+
+[functions.lead-intake]
+# The endpoint receives submissions from a public contact form, so it must be
+# callable without a Supabase JWT. Access control happens inside the function.
+verify_jwt = false
