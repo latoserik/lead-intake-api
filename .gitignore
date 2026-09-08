@@ -1,0 +1,17 @@
+# Titkok - soha nem kerulhet a repoba
+.env
+.env.*
+!.env.example
+
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Node (csak ha helyi eszkozokhoz kellene)
+node_modules/
