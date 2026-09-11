@@ -27,7 +27,8 @@ export class MissingConfigError extends Error {
   }
 }
 
-const DEFAULT_MODEL = "claude-3-5-haiku-latest";
+/** Fast and cheap; classification does not need a larger model. */
+const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
 
 function requireEnv(name: string): string {
   const value = Deno.env.get(name)?.trim();
