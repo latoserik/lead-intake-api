@@ -10,7 +10,15 @@
 import { CORS_HEADERS, jsonResponse } from "./http.ts";
 import { loadConfig, MissingConfigError } from "./config.ts";
 import { validateLeadInput } from "./validation.ts";
-import { createDbClient, emailAlreadyExists } from "./repository.ts";
+import {
+  createDbClient,
+  DuplicateEmailError,
+  emailAlreadyExists,
+  insertLead,
+  type StoredLead,
+} from "./repository.ts";
+import { classifyLead } from "./classifier.ts";
+import { notifyUrgentLead } from "./notifier.ts";
 
 /** Guard against absurdly large bodies before parsing them. */
 const MAX_BODY_BYTES = 64 * 1024;
@@ -91,11 +99,39 @@ Deno.serve(async (req: Request): Promise<Response> => {
     console.warn(`[${requestId}] duplicate pre-check failed, continuing:`, error);
   }
 
-  console.log(`[${requestId}] accepted lead from ${lead.email}`);
+  // Classification never throws: on any failure it returns the fallback
+  // (ismeretlen / 2 / classified = false) so the lead is still stored.
+  const classification = await classifyLead(lead, config, requestId);
 
-  // LLM classification, persistence and notification are added next.
-  return jsonResponse(501, {
-    error: "not_implemented",
-    message: "A feldolgozás még nincs kész.",
-  });
+  let stored: StoredLead;
+  try {
+    stored = await insertLead(db, lead, classification, config.dbTimeoutMs);
+  } catch (error) {
+    if (error instanceof DuplicateEmailError) {
+      // Lost the race against a concurrent request with the same email.
+      return jsonResponse(409, {
+        error: "duplicate_email",
+        message: "Ezzel az email címmel már érkezett megkeresés.",
+        field: "email",
+      });
+    }
+    console.error(`[${requestId}] failed to store lead:`, error);
+    return jsonResponse(503, {
+      error: "storage_unavailable",
+      message: "A megkeresést most nem tudjuk elmenteni, kérjük próbálja meg később.",
+    });
+  }
+
+  console.log(
+    `[${requestId}] stored lead ${stored.id} ` +
+      `(category=${stored.category}, priority=${stored.priority}, classified=${stored.classified})`,
+  );
+
+  // Awaited on purpose: background work can be cut short when the isolate is
+  // recycled. The call has its own timeout and never throws.
+  if (stored.priority === 1) {
+    await notifyUrgentLead(lead, stored, config, requestId);
+  }
+
+  return jsonResponse(201, stored);
 });
