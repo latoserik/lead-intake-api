@@ -84,13 +84,25 @@ if [ "$jstatus" = "400" ]; then pass=$((pass + 1)); else fail=$((fail + 1)); pri
 
 if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_ANON_KEY:-}" ]; then
   printf '\n=== 7. RLS: a leads tábla anon kulccsal nem olvasható ===\n'
-  rls="$(curl -s -o /dev/null -w '%{http_code}' \
+  rls_read="$(curl -s -o /dev/null -w '%{http_code}' \
     "${SUPABASE_URL}/rest/v1/leads?select=*" \
     -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")"
-  printf 'várt: 401/403/404   kapott: %s\n' "$rls"
-  case "$rls" in
+  printf 'várt: 401/403/404   kapott: %s\n' "$rls_read"
+  case "$rls_read" in
     401 | 403 | 404) pass=$((pass + 1)) ;;
-    *) fail=$((fail + 1)); printf '!!! ELTÉRÉS - a tábla elérhető anon kulccsal\n' ;;
+    *) fail=$((fail + 1)); printf '!!! ELTÉRÉS - a tábla olvasható anon kulccsal\n' ;;
+  esac
+
+  printf '\n=== 8. RLS: a leads táblába anon kulccsal nem lehet írni ===\n'
+  rls_write="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+    "${SUPABASE_URL}/rest/v1/leads" \
+    -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+    -H 'Content-Type: application/json' \
+    -d '{"name":"anon","email":"anon-write-teszt@example.com","message":"anon","category":"altalanos","priority":2}')"
+  printf 'várt: 401/403/404   kapott: %s\n' "$rls_write"
+  case "$rls_write" in
+    401 | 403 | 404) pass=$((pass + 1)) ;;
+    *) fail=$((fail + 1)); printf '!!! ELTÉRÉS - a táblába lehet írni anon kulccsal\n' ;;
   esac
 fi
 

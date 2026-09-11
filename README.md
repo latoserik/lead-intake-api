@@ -45,7 +45,7 @@ tests/
   classifier_test.ts   9 teszt az LLM-válasz ellenőrzésére
   assert.ts            pár soros assert helper, hogy ne kelljen függőség
 scripts/
-  smoke-test.sh        a deployolt végpont végigtesztelése
+  smoke-test.sh        a deployolt végpont végigtesztelése (8 eset)
 ```
 
 ## Adatbázis
@@ -72,14 +72,23 @@ szerepkörök tábla-szintű jogait is, amiket a Supabase alapból megad. Így a
 anon kulccsal küldött kérés jogosultsági hibát kap, nem üres listát. A
 `service_role` kulcs megkerüli az RLS-t, ezért az Edge Function működik.
 
-Ellenőrzés:
+Ellenőrzés anon kulccsal, olvasásra és írásra:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' \
   "$SUPABASE_URL/rest/v1/leads?select=*" \
   -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY"
 # 401
+
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  "$SUPABASE_URL/rest/v1/leads" \
+  -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"anon","email":"anon@example.com","message":"anon","category":"altalanos","priority":2}'
+# 401
 ```
+
+Mindkettőt a `scripts/smoke-test.sh` is lefuttatja.
 
 ## Környezeti változók
 
@@ -343,8 +352,9 @@ export SUPABASE_ANON_KEY='<anon kulcs>'
 ./scripts/smoke-test.sh
 ```
 
-Hét esetet futtat: érvényes kérés, hibás kérés, duplikált email, sürgős lead
-(ez küldi a webhookot), rossz metódus, érvénytelen JSON, és az RLS-ellenőrzés.
+Nyolc esetet futtat: érvényes kérés, hibás kérés, duplikált email, sürgős lead
+(ez küldi a webhookot), rossz metódus, érvénytelen JSON, és két RLS-ellenőrzés
+(anon kulccsal sem olvasni, sem írni nem lehet a táblába).
 
 A két hibaágat kézzel teszteltem a deployolt végponton úgy, hogy ideiglenesen
 elrontottam egy-egy titkot. Rossz `ANTHROPIC_API_KEY`-jel a lead
