@@ -1,12 +1,9 @@
 /**
- * Environment configuration.
+ * Reads the environment variables.
  *
- * Everything secret comes from environment variables; nothing is hard-coded.
- *
- * Only the Supabase credentials are strictly required. A missing Anthropic key
- * or webhook URL degrades gracefully instead of failing the request: the lead
- * is still stored (with classified = false), because losing a lead is worse
- * than storing an unclassified one.
+ * Only the Supabase credentials are required. Without the Anthropic key or the
+ * webhook URL the function still answers: the lead gets stored, just
+ * unclassified or without a notification.
  */
 
 export interface AppConfig {
@@ -27,7 +24,7 @@ export class MissingConfigError extends Error {
   }
 }
 
-/** Fast and cheap; classification does not need a larger model. */
+/** Small and cheap; this classification does not need a bigger model. */
 const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
 
 function requireEnv(name: string): string {

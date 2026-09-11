@@ -1,9 +1,9 @@
 /**
  * Database access.
  *
- * The client is built with the service_role key, which bypasses RLS. The
- * `leads` table has RLS enabled with no policies and no grants for anon /
- * authenticated, so this is the only way in.
+ * The client uses the service_role key, which bypasses RLS. The leads table
+ * has RLS on with no policies and no grants for anon / authenticated, so this
+ * is the only way to reach it.
  */
 
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
@@ -21,11 +21,10 @@ export function createDbClient(config: AppConfig): SupabaseClient {
 }
 
 /**
- * Tells whether a lead with this email was already recorded.
+ * Checks whether this email is already in the table.
  *
- * The caller treats a failure here as "unknown" rather than as an error: the
- * unique constraint on `leads.email` is the authoritative check, this lookup
- * only saves us an LLM call on an obvious duplicate.
+ * If the lookup itself fails the caller carries on: the unique constraint on
+ * leads.email catches duplicates anyway. This query only saves an LLM call.
  */
 export async function emailAlreadyExists(
   client: SupabaseClient,
@@ -65,10 +64,8 @@ export class DuplicateEmailError extends Error {
 }
 
 /**
- * Stores the lead.
- *
- * The unique index on leads.email is the authoritative duplicate check: the
- * pre-check above can lose a race with a concurrent request, this cannot.
+ * Stores the lead. The unique index on leads.email catches duplicates that the
+ * pre-check above can miss when two requests arrive at the same time.
  */
 export async function insertLead(
   client: SupabaseClient,

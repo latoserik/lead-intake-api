@@ -42,8 +42,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     config = loadConfig();
   } catch (error) {
-    // Misconfiguration is our fault, not the caller's: log it and answer with
-    // a 500 that does not leak which variable is missing.
+    // Our problem, not the caller's: log it, and answer 500 without saying
+    // which variable is missing.
     console.error(`[${requestId}] configuration error:`, error);
     if (error instanceof MissingConfigError) {
       return jsonResponse(500, {
@@ -84,9 +84,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const lead = validation.value;
   const db = createDbClient(config);
 
-  // Cheap pre-check: an obvious duplicate should not cost us an LLM call.
-  // If the lookup itself fails we carry on - the unique constraint on
-  // leads.email is the authoritative check and is handled at insert time.
+  // Cheap pre-check so an obvious duplicate does not cost an LLM call. If the
+  // lookup fails we carry on; the unique constraint catches it at insert.
   try {
     if (await emailAlreadyExists(db, lead.email, config.dbTimeoutMs)) {
       return jsonResponse(409, {
@@ -99,8 +98,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     console.warn(`[${requestId}] duplicate pre-check failed, continuing:`, error);
   }
 
-  // Classification never throws: on any failure it returns the fallback
-  // (ismeretlen / 2 / classified = false) so the lead is still stored.
+  // Never throws: on failure it returns the fallback (ismeretlen / 2 /
+  // classified = false) so the lead is still stored.
   const classification = await classifyLead(lead, config, requestId);
 
   let stored: StoredLead;
@@ -108,7 +107,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     stored = await insertLead(db, lead, classification, config.dbTimeoutMs);
   } catch (error) {
     if (error instanceof DuplicateEmailError) {
-      // Lost the race against a concurrent request with the same email.
+      // Another request with the same email got here first.
       return jsonResponse(409, {
         error: "duplicate_email",
         message: "Ezzel az email címmel már érkezett megkeresés.",
@@ -127,7 +126,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       `(category=${stored.category}, priority=${stored.priority}, classified=${stored.classified})`,
   );
 
-  // Awaited on purpose: background work can be cut short when the isolate is
+  // Awaited on purpose: background work can be cut off when the isolate is
   // recycled. The call has its own timeout and never throws.
   if (stored.priority === 1) {
     await notifyUrgentLead(lead, stored, config, requestId);

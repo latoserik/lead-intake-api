@@ -1,12 +1,11 @@
 /**
- * Urgent-lead notification.
+ * Notification for urgent leads.
  *
- * Fire-and-report-only: a webhook failure must never fail the request. The
- * lead is already stored by the time this runs; the notification is a
- * convenience, not part of the contract with the caller.
+ * The lead is already stored when this runs, so a webhook failure must not
+ * fail the request. Errors are logged and nothing else.
  *
- * The payload is shaped for a Discord webhook. Swapping to Slack or Make.com
- * means rewriting buildPayload() and nothing else.
+ * The payload is Discord-shaped. For Slack or Make.com only buildPayload()
+ * needs to change.
  */
 
 import { fetchWithTimeout } from "./http.ts";
@@ -44,9 +43,7 @@ export function buildPayload(lead: LeadInput, stored: StoredLead): unknown {
   };
 }
 
-/**
- * Sends the notification. Never throws: every failure is logged and swallowed.
- */
+/** Sends the notification. Never throws; failures are only logged. */
 export async function notifyUrgentLead(
   lead: LeadInput,
   stored: StoredLead,

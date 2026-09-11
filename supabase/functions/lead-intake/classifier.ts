@@ -1,13 +1,11 @@
 /**
- * LLM classification of an incoming lead.
+ * Classifies an incoming lead with the Anthropic Messages API.
  *
- * Uses the Anthropic Messages API with a forced tool call, which is the most
- * reliable way to get structured output: the model must answer through the
- * tool's JSON schema instead of free text we would have to parse.
+ * The call forces a tool use, so the model has to answer through the tool's
+ * JSON schema instead of free text we would need to parse.
  *
- * The schema is enforced on our side too. Anything the model returns is
- * re-validated here before it reaches the database - a model is an external
- * service, not a trusted source.
+ * We check the answer against the same rules anyway. The model is an external
+ * service, so nothing it returns goes to the database unchecked.
  */
 
 import { fetchWithTimeout } from "./http.ts";
@@ -33,10 +31,7 @@ export interface Classification {
   classified: boolean;
 }
 
-/**
- * Used whenever classification cannot be trusted. A lead is never dropped
- * because the LLM was unavailable or answered nonsense.
- */
+/** Used when the classification cannot be trusted, so the lead is still stored. */
 export const FALLBACK_CLASSIFICATION: Classification = {
   category: "ismeretlen",
   priority: 2,
@@ -79,9 +74,8 @@ function buildUserMessage(lead: LeadInput): string {
 }
 
 /**
- * Validates the model's answer against the same contract the schema declares.
- * Returns null when anything is off, which the caller treats as a failed
- * attempt.
+ * Checks the model's answer against the same rules as the schema. Returns null
+ * if anything is off; the caller treats that as a failed attempt.
  */
 export function parseClassification(payload: unknown): Classification | null {
   if (typeof payload !== "object" || payload === null) return null;
@@ -130,8 +124,8 @@ function isRetryableStatus(status: number): boolean {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Classifies a lead. Never throws and never rejects: on any failure it returns
- * FALLBACK_CLASSIFICATION so the caller can still store the lead.
+ * Never throws: on any failure it returns FALLBACK_CLASSIFICATION so the caller
+ * can store the lead anyway.
  */
 export async function classifyLead(
   lead: LeadInput,

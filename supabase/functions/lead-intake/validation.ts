@@ -1,8 +1,6 @@
 /**
- * Validation of the incoming request body.
- *
- * Collects every problem instead of failing on the first one, so the caller
- * can fix the whole form in one round trip.
+ * Validates the request body. Collects every problem instead of stopping at
+ * the first one, so the form can be fixed in one go.
  */
 
 export interface LeadInput {
@@ -37,8 +35,8 @@ const MAX_LENGTH = {
 } as const;
 
 /**
- * Pragmatic email check: rejects the obviously malformed addresses without
- * pretending to implement RFC 5322. Real verification means sending a mail.
+ * Catches the obviously malformed addresses. This is not RFC 5322; the only
+ * real check is sending a mail to the address.
  */
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 

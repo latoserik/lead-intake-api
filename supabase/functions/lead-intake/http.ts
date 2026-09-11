@@ -19,11 +19,9 @@ export function jsonResponse(status: number, body: unknown): Response {
 }
 
 /**
- * fetch() with a hard timeout.
- *
- * Every outbound HTTP call in this function goes through here, so a third
- * party that stops responding can never hold the request open indefinitely.
- * On timeout the returned promise rejects with an AbortError.
+ * fetch() with a timeout. Every outbound call goes through this, so a service
+ * that stops responding cannot hold the request open. On timeout the promise
+ * rejects with an AbortError.
  */
 export async function fetchWithTimeout(
   input: string | URL,
